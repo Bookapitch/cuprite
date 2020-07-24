@@ -355,21 +355,29 @@ describe Capybara::Session do
       expect { @session.evaluate_script(%(throw "smth")) }.to raise_error(Ferrum::JavaScriptError)
     end
 
-    it "ignores cyclic structure errors in evaluate_script" do
-      code = <<-JS
-        (function() {
-          var a = {};
-          var b = {};
-          var c = {};
-          c.a = a;
-          a.a = a;
-          a.b = b;
-          a.c = c;
-          return a;
-        })()
-      JS
+    context "cyclic structure" do
+      let(:code) {
+        <<~JS
+          (function() {
+            var a = {};
+            var b = {};
+            var c = {};
+            c.a = a;
+            a.a = a;
+            a.b = b;
+            a.c = c;
+            return %s;
+          })()
+        JS
+      }
 
-      expect(@session.evaluate_script(code)).to eq("(cyclic structure)")
+      it "ignores objects in evaluate" do
+        expect(@session.evaluate_script(code % "a")).to eq(Ferrum::CyclicObject.instance)
+      end
+
+      it "ignores arrays in evaluate" do
+        expect(@session.evaluate_script(code % "[a]")).to eq([Ferrum::CyclicObject.instance])
+      end
     end
 
     it "synchronises page loads properly" do
